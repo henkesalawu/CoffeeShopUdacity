@@ -11,15 +11,11 @@ API_AUDIENCE = 'coffee'
 CLIENT_ID = 'ZP5NVyFMNrKCXz668pd42kl0gqvff5Ge'
 
 ## AuthError Exception
-'''
-AuthError Exception
-A standardized way to communicate auth failure modes
-'''
+
 class AuthError(Exception):
     def __init__(self, error, status_code):
         self.error = error
         self.status_code = status_code
-
 
 ## Auth Header
 
@@ -30,8 +26,7 @@ def get_token_auth_header():
             'code': 'authorization_header_missing',
             'description': 'Authorization header is missing.'
         }, 401)
-    
-    auth_parts = auth.split()
+    auth_parts = auth.split(' ')
     
     if auth_parts[0].lower() != 'bearer':
        raise AuthError({
@@ -48,7 +43,6 @@ def get_token_auth_header():
             'code': 'invalid_header',
             'description': 'Authorization header must be bearer token.'
         }, 401)
-    
     token = auth_parts[1]
        
     return token
@@ -62,9 +56,9 @@ def check_permissions(permission, payload):
 
     if permission not in payload['permissions']:
         raise AuthError({
-            'code': 'not_allowed',
+            'code': 'not_authorized',
             'description': 'Do not have permission.'
-        }, 405)
+        }, 403)
 
     return True
 
@@ -135,7 +129,7 @@ def requires_auth(permission=''):
                 raise AuthError({
                     'code': 'invalid_token',
                     'description': 'Invalid token'
-                }, 401)
+                }, 403)
             check_permissions(permission, payload)
             return f(payload, *args, **kwargs)
 

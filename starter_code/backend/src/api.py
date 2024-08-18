@@ -1,7 +1,5 @@
-import os
-from flask import Flask, request, jsonify, abort
-from sqlalchemy import exc
 import json
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 
 from .database.models import db_drop_and_create_all, setup_db, Drink
@@ -11,18 +9,16 @@ app = Flask(__name__)
 setup_db(app)
 CORS(app)
 
-'''
-@TODO uncomment the following line to initialize the datbase
-!! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
-!! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
-!! Running this funciton will add one
-'''
-db_drop_and_create_all()
+with app.app_context():
+    db_drop_and_create_all()
 
 # ROUTES
 # GET request for all available drinks / short description
 @app.route("/drinks", methods=['GET'])
 def get_drinks():
+    """
+    Get list of available drinks
+    """
     try:
         drinks = Drink.query.all()
 
@@ -33,7 +29,6 @@ def get_drinks():
             "success": True,
             "drinks": [drink.short() for drink in drinks]
         }), 200
-    
     except Exception as e:
         print(e)
         abort(422)
@@ -42,6 +37,9 @@ def get_drinks():
 @app.route("/drinks-detail", methods=['GET'])
 @requires_auth('get:drinks-detail')
 def get_drinks_detail(payload):
+    """
+    Get details of the drink
+    """
     try:
         drinks = Drink.query.all()
 
@@ -52,7 +50,6 @@ def get_drinks_detail(payload):
             "success": True,
             "drinks": [drink.long() for drink in drinks]
         }), 200
-    
     except Exception as e:
         print(e)
         abort(422)
@@ -61,34 +58,40 @@ def get_drinks_detail(payload):
 @app.route("/drinks", methods=['POST'])
 @requires_auth('post:drinks')
 def add_drink(payload):
+    """
+    Create new drink
+    """
     body = request.get_json()
-    new_title = body.get('drink', None)
-    new_recipe = body.get('recipe', None)
-
-    try:        
+    new_title = body.get('title')
+    new_recipe = body.get('recipe')
+    new_recipe = json.dumps(new_recipe)
+    try:
         if not new_title:
             abort(422)
+            print('title missing')
         if not new_recipe:
             abort(422)
-        
+
         drink = Drink(
             title=new_title,
-            recipe=json.dumps(new_recipe)
+            recipe=new_recipe
             )
         drink.insert()
-            
         return jsonify({
             "success": True,
             "drinks": [drink.long()]
-        }), 200
+        })
     except Exception as e:
         print(e)
-        abort(404)
+        abort(422)
 
 # PATCH request to update specific drink
 @app.route("/drinks/<int:drink_id>", methods=['PATCH'])
 @requires_auth('patch:drinks')
 def patch_drink(payload, drink_id):
+    """
+    Update existing drink
+    """
     body = request.get_json()
 
     try:
@@ -97,22 +100,19 @@ def patch_drink(payload, drink_id):
         if drink_to_update is None:
             abort(404)
 
-        new_title = body.get('title')
-        new_recipe = body.get('recipe')
+        new_title = body.get('title', None)
+        new_recipe = body.get('recipe', None)
 
         if new_title:
             drink_to_update.title = new_title
         if new_recipe:
             drink_to_update.recipe = json.dumps(new_recipe)
-        
         drink_to_update.update()
-
         updated_drink = Drink.query.get(drink_id)
         return jsonify({
             "success": True,
             "drinks": [updated_drink.long()]
             }), 200
-    
     except Exception as e:
         print(e)
         abort(422)
@@ -121,10 +121,11 @@ def patch_drink(payload, drink_id):
 @app.route("/drinks/<int:drink_id>", methods=['DELETE'])
 @requires_auth('delete:drinks')
 def delete_drink(payload, drink_id):
-   
+    """
+    Delete selected drink
+    """
     try:
         drink_to_delete = Drink.query.get(drink_id)
-
         if drink_to_delete is None:
             abort(404)
 
@@ -139,20 +140,14 @@ def delete_drink(payload, drink_id):
         print(e)
         abort(422)
 
-
-
 # Error Handling
-'''
-Example error handling for unprocessable entity
-'''
-
 
 @app.errorhandler(422)
 def unprocessable(error):
     return jsonify({
         "success": False,
         "error": 422,
-        "message": "unprocessable"
+        "message": "Cannot process the request."
     }), 422
 
 @app.errorhandler(404)
@@ -186,3 +181,11 @@ def not_allowed(error):
         "error": 405,
         "message": "Not Allowed"
     }), 405
+
+@app.errorhandler(401)
+def notauthorized(error):
+    return jsonify({
+        'success': False,
+        'error': 401,
+        'message': 'Not authorized'
+    }), 401

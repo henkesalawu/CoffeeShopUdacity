@@ -31,6 +31,7 @@
     "rxjs": "~6.5.1",
     "sass": "^1.77.6",
     "tslib": "^1.9.0",
+    "udaspicelatte": "file:",
     "zone.js": "~0.8.29"
   },
   "devDependencies": {
